@@ -1,0 +1,82 @@
+export const products = [
+  {
+    id: "p1",
+    name: "💉 Vaccine y tế",
+    temp: "2-8°C",
+    risk: "high",
+    gas: false,
+    img: "https://cdn-icons-png.flaticon.com/512/4190/4190876.png"
+  },
+
+  {
+    id: "p2",
+    name: "🧪 Hóa chất công nghiệp",
+    temp: "<25°C",
+    risk: "danger",
+    gas: true,
+    img: "https://cdn-icons-png.flaticon.com/512/3880/3880536.png"
+  },
+
+  {
+    id: "p3",
+    name: "🥶 Thực phẩm đông lạnh",
+    temp: "-18°C",
+    risk: "medium",
+    gas: false,
+    img: "https://cdn-icons-png.flaticon.com/512/2935/2935394.png"
+  },
+
+  {
+    id: "p4",
+    name: "🍎 Trái cây tươi",
+    temp: "5-10°C",
+    risk: "medium",
+    gas: false,
+    img: "https://cdn-icons-png.flaticon.com/512/415/415733.png"
+  },
+
+  {
+    id: "p5",
+    name: "🛢️ Bình gas",
+    temp: "normal",
+    risk: "danger",
+    gas: true,
+    img: "https://cdn-icons-png.flaticon.com/512/9747/9747063.png"
+  },
+
+  {
+    id: "p6",
+    name: "💊 Thuốc kháng sinh",
+    temp: "15-25°C",
+    risk: "high",
+    gas: false,
+    img: "https://cdn-icons-png.flaticon.com/512/822/822143.png"
+  },
+
+  {
+    id: "p7",
+    name: "🧫 Sinh phẩm xét nghiệm",
+    temp: "2-8°C",
+    risk: "high",
+    gas: false,
+    img: "https://cdn-icons-png.flaticon.com/512/2785/2785819.png"
+  },
+
+  {
+    id: "p8",
+    name: "🔥 Khí dễ cháy",
+    temp: "normal",
+    risk: "danger",
+    gas: true,
+    img: "https://cdn-icons-png.flaticon.com/512/785/785116.png"
+  },
+
+  {
+    id: "p9",
+    name: "📦 Linh kiện điện tử",
+    temp: "<30°C",
+    risk: "low",
+    gas: false,
+    img: "https://cdn-icons-png.flaticon.com/512/3659/3659899.png"
+  }
+];

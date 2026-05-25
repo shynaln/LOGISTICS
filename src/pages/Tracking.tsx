@@ -154,128 +154,342 @@ export default function Tracking() {
 
   const [selected, setSelected] =
     useState<Vehicle>(demoVehicles[0]);
+  useEffect(() => {
 
+  const found = vehicles.find(
+
+    v => v.id === selected?.id
+  );
+
+  if (found) {
+
+    setSelected(found);
+  }
+
+}, [vehicles]);
+//////////////////////////////////////////////////////
+  // VEHICLE ANIMATION STATE
+  //////////////////////////////////////////////////////
+
+  const [vehicleStates, setVehicleStates] = useState<any>({
+    xe1: {
+      speed: 0,
+      progress: 0
+    },
+
+    xe2: {
+      speed: 0,
+      progress: 0
+    },
+
+    xe3: {
+      speed: 0,
+      progress: 0
+    }
+  });
   ////////////////////////////////////////////////////////////////////////////
   // DEMO FIREBASE
   ////////////////////////////////////////////////////////////////////////////
 
   useEffect(() => {
 
-    if (mode !== "demo") return;
+  if (mode !== "demo") return;
 
-    listenVehicles((data: any) => {
+  let firebaseData: any = {};
 
-      setVehicles(prev =>
+  listenVehicles((data: any) => {
 
-        prev.map(vehicle => {
+    firebaseData = data;
+  });
 
-          if (vehicle.id === "xe1") {
+  const interval = setInterval(() => {
 
-            return {
+    setVehicleStates((prev: any) => {
 
-              ...vehicle,
+      const updated: any = {
 
-              running:
-                data?.xe1?.running || 0
-            };
-          }
+  xe1: {
+    ...prev.xe1
+  },
 
-          if (vehicle.id === "xe2") {
+  xe2: {
+    ...prev.xe2
+  },
 
-            return {
+  xe3: {
+    ...prev.xe3
+  }
+};
 
-              ...vehicle,
+      (["xe1", "xe2", "xe3"] as const).forEach((id) => {
 
-              running:
-                data?.xe2?.running || 0
-            };
-          }
-
-          if (vehicle.id === "xe3") {
-
-            return {
-
-              ...vehicle,
-
-              running:
-                data?.xe3?.running || 0
-            };
-          }
-
-          return vehicle;
-        })
+        const running = Number(
+        firebaseData?.[id]?.running || 0
       );
-    });
 
-  }, [mode]);
+        ////////////////////////////////////////////////////
+        // RUNNING
+        ////////////////////////////////////////////////////
 
-  ////////////////////////////////////////////////////////////////////////////
-  // LIVE FIREBASE
-  ////////////////////////////////////////////////////////////////////////////
+        if (running === 1) {
 
-  useEffect(() => {
+          // speed tăng từ từ lên 70
 
-    if (mode !== "live") return;
+          if (updated[id].speed < 70) {
 
-    let sensorData: any = {};
+            updated[id].speed +=
+              Math.random() * 5;
 
-    listenSensors((data: any) => {
+          } else {
 
-      sensorData = data;
-    });
+            // dao động 60-70
 
-    const interval = setInterval(() => {
+            updated[id].speed =
+              60 + Math.random() * 10;
+          }
 
-      const arr: Vehicle[] = [];
+          // progress chạy route
 
-      arr.push({
+          updated[id].progress += 0.3;
 
-        id: "gps-live",
+          if (updated[id].progress > 100) {
 
-        driver: "GPS REALTIME",
+            updated[id].progress = 0;
+          }
+        }
 
-        running: 1,
+        ////////////////////////////////////////////////////
+        // STOP
+        ////////////////////////////////////////////////////
 
-        speed:
-          Number(sensorData?.speed || 0),
+        else {
 
-        load: 0,
-
-        temp:
-          Number(sensorData?.temperature || 0),
-
-        humidity:
-          Number(sensorData?.humidity || 0),
-
-        gasText:
-          sensorData?.gas_status || "AN TOAN",
-
-        gasDanger:
-          sensorData?.gas_status === "NGUY HIEM",
-
-        route: "",
-
-        progress: 99,
-
-        duration: 0,
-
-        lat:
-          Number(sensorData?.lat || 0),
-
-        lng:
-          Number(sensorData?.lon || 0)
+          updated[id].speed = 0;
+          updated[id].progress = 0;
+        }
       });
 
-      setVehicles(arr);
+      //////////////////////////////////////////////////////
+// UPDATE VEHICLES
+//////////////////////////////////////////////////////
 
-      setSelected(arr[0]);
+setVehicles(prevVehicles =>
 
-    }, 1000);
+  prevVehicles.map(vehicle => {
 
-    return () => clearInterval(interval);
+    //////////////////////////////////////////////////
+    // LOCAL STATE
+    //////////////////////////////////////////////////
 
-  }, [mode]);
+    const state =
+      updated[vehicle.id];
 
+    //////////////////////////////////////////////////
+    // FIREBASE VEHICLE
+    //////////////////////////////////////////////////
+
+    const firebaseVehicle =
+      firebaseData?.[vehicle.id] || {};
+
+    //////////////////////////////////////////////////
+    // RUNNING
+    //////////////////////////////////////////////////
+
+    const running = Number(
+      firebaseVehicle.running || 0
+    );
+
+    //////////////////////////////////////////////////
+    // ROUTE
+    //////////////////////////////////////////////////
+let finalRoute = "";
+
+if (vehicle.id === "xe1") {
+
+  finalRoute =
+    "/routes/R1.gpx";
+}
+
+else if (vehicle.id === "xe2") {
+
+  finalRoute =
+    "/routes/R2.gpx";
+}
+
+else if (vehicle.id === "xe3") {
+
+  finalRoute =
+    "/routes/R3.gpx";
+}
+    //////////////////////////////////////////////////
+    // RETURN
+    //////////////////////////////////////////////////
+
+    return {
+
+      ...vehicle,
+      
+      //////////////////////////////////////////////////
+      // RUNNING STATUS
+      //////////////////////////////////////////////////
+
+      running,
+
+      //////////////////////////////////////////////////
+      // AUTO LOAD GPX
+      //////////////////////////////////////////////////
+
+      route:
+
+  running === 1
+
+    ? finalRoute
+
+    : "",
+
+      //////////////////////////////////////////////////
+      // SPEED
+      //////////////////////////////////////////////////
+
+      speed:
+
+        running === 1
+
+          ? Math.floor(state.speed)
+
+          : 0,
+
+      //////////////////////////////////////////////////
+      // PROGRESS
+      //////////////////////////////////////////////////
+
+      progress:
+
+        running === 1
+
+          ? Math.floor(state.progress)
+
+          : 0
+    };
+  })
+);
+
+      return updated;
+    });
+
+  }, 1000);
+
+  return () => clearInterval(interval);
+
+}, [mode]);
+////////////////////////////////////////////////////////////////////////////
+// LIVE FIREBASE
+////////////////////////////////////////////////////////////////////////////
+
+useEffect(() => {
+
+  if (mode !== "live") return;
+
+  let sensorData: any = {};
+
+  ////////////////////////////////////////////////////
+  // LISTEN SENSOR
+  ////////////////////////////////////////////////////
+
+  listenSensors((data: any) => {
+
+    sensorData = data;
+  });
+
+  ////////////////////////////////////////////////////
+  // UPDATE LIVE VEHICLE
+  ////////////////////////////////////////////////////
+
+  const interval = setInterval(() => {
+
+    //////////////////////////////////////////////////
+    // CHECK GPS VALID
+    //////////////////////////////////////////////////
+
+    const lat =
+      Number(sensorData?.lat);
+
+    const lng =
+      Number(sensorData?.lon);
+
+    //////////////////////////////////////////////////
+    // INVALID GPS
+    //////////////////////////////////////////////////
+
+    if (
+      isNaN(lat) ||
+      isNaN(lng) ||
+      lat === 0 ||
+      lng === 0
+    ) return;
+
+    //////////////////////////////////////////////////
+    // LIVE VEHICLE
+    //////////////////////////////////////////////////
+
+    const liveVehicle = {
+
+      id: "gps-live",
+
+      driver: "GPS REALTIME",
+
+      running: 1,
+
+      speed:
+        Number(
+          sensorData?.speed || 0
+        ),
+
+      load: 0,
+
+      temp:
+        Number(
+          sensorData?.temperature || 0
+        ),
+
+      humidity:
+        Number(
+          sensorData?.humidity || 0
+        ),
+
+      gasText:
+        sensorData?.gas_status
+          || "AN TOAN",
+
+      gasDanger:
+        sensorData?.gas_status
+          === "NGUY HIEM",
+
+      route: "",
+
+      progress: 100,
+
+      duration: 0,
+
+      lat,
+
+      lng
+    };
+
+    //////////////////////////////////////////////////
+    // UPDATE
+    //////////////////////////////////////////////////
+
+    setVehicles([liveVehicle]);
+
+    setSelected(liveVehicle);
+
+  }, 1000);
+
+  return () =>
+    clearInterval(interval);
+
+}, [mode]);
   ////////////////////////////////////////////////////////////////////////////
   // SWITCH MODE
   ////////////////////////////////////////////////////////////////////////////
@@ -692,11 +906,10 @@ export default function Tracking() {
         <div className="flex-1">
 
           <MapView
-            center={mapCenter}
-            vehicles={vehicles}
-            route={selected.route}
-            selected={selected}
-          />
+        center={mapCenter}
+        vehicles={vehicles}
+        selected={selected}
+      />
 
         </div>
 

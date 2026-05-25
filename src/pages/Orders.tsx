@@ -279,7 +279,42 @@ export default function Orders() {
 
       {
 
-        items: cart,
+        items:
+
+  Object.entries(cart)
+
+    .map(([id,q]:any)=>{
+
+      const product =
+
+        products.find(
+          p=>p.id===id
+        );
+
+      return {
+
+        id,
+
+        name:
+          product?.name,
+
+        quantity:q,
+
+        price:
+          product?.price || 0,
+
+        total:
+
+          (
+            product?.price || 0
+          ) * q
+      };
+
+    }),
+
+totalItems,
+
+totalPrice,
 
         truck:
           selectedTruck,
@@ -326,7 +361,35 @@ export default function Orders() {
         (a,b)=>a+b,
         0
       );
+  const totalPrice =
 
+  Object.entries(cart)
+
+    .reduce(
+
+      (sum,[id,q]:any)=>{
+
+        const product =
+
+          products.find(
+            p=>p.id===id
+          );
+
+        return (
+
+          sum +
+
+          (
+            (product?.price || 0)
+
+            * q
+          )
+        );
+
+      },
+
+      0
+    );
   ////////////////////////////////////////////////////////////////////////////
   // UI
   ////////////////////////////////////////////////////////////////////////////
@@ -493,7 +556,14 @@ export default function Orders() {
                 ">
                   {p.name}
                 </h2>
-
+                <h3 className="
+  text-2xl
+  font-bold
+  text-green-600
+  mt-3
+">
+  {Number(p.price || 0).toLocaleString()}đ
+</h3>
                 <p className="
                   text-sm
                   text-gray-500
@@ -698,12 +768,42 @@ export default function Orders() {
 
                         </div>
 
-                        <span className="
-                          font-medium
-                        ">
-                          {id}
-                        </span>
+                        <div>
 
+  <span className="
+    font-medium
+  ">
+    {
+
+      products.find(
+        p=>p.id===id
+      )?.name
+
+    }
+  </span>
+
+  <p className="
+    text-sm
+    text-green-600
+    font-semibold
+  ">
+
+    {
+
+      (
+        (
+          products.find(
+            p=>p.id===id
+          )?.price || 0
+        ) * q
+
+      ).toLocaleString()
+
+    }đ
+
+  </p>
+
+</div>
                       </div>
 
                       <div className="
@@ -760,7 +860,29 @@ export default function Orders() {
                   ">
                     {totalItems}
                   </h2>
+                  <div className="
+  mt-4
+  pt-4
+  border-t
+  border-white/20
+">
 
+  <p className="
+    text-sm
+    opacity-80
+  ">
+    Total Price
+  </p>
+
+  <h2 className="
+    text-3xl
+    font-bold
+    mt-1
+  ">
+    {totalPrice.toLocaleString()}đ
+  </h2>
+
+</div>
                 </div>
 
                 <Boxes size={42} />
@@ -962,7 +1084,94 @@ export default function Orders() {
                         {" "}
                         {o.truck}
                       </p>
+                    <div className="
+  mt-4
+  space-y-2
+">
 
+  {Array.isArray(o.items) &&
+
+  o.items.map((item:any)=>(
+
+
+    <div
+
+      key={item.id}
+
+      className="
+        flex
+        justify-between
+        items-center
+        bg-white
+        rounded-2xl
+        px-4
+        py-3
+      "
+    >
+
+      <div>
+
+        <h3 className="
+          font-semibold
+        ">
+          {item.name}
+        </h3>
+
+        <p className="
+          text-sm
+          text-gray-500
+        ">
+          {item.quantity}
+          {" x "}
+          {Number(item.price || 0).toLocaleString()}đ
+        </p>
+
+      </div>
+
+      <div className="
+        font-bold
+        text-green-600
+      ">
+
+       {Number(item.total || 0).toLocaleString()}đ
+
+      </div>
+
+    </div>
+
+  ))
+  }
+
+  <div className="
+    flex
+    justify-between
+    items-center
+    mt-4
+    pt-4
+    border-t
+  ">
+
+    <span className="
+      font-semibold
+      text-gray-600
+    ">
+      Total
+    </span>
+
+    <span className="
+      text-2xl
+      font-bold
+      text-green-600
+    ">
+
+      {(o.totalPrice || 0)
+        .toLocaleString()}đ
+
+    </span>
+
+  </div>
+
+</div>
                     </div>
 
                     <div className="

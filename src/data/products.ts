@@ -1,10 +1,12 @@
 export const products = [
+
   {
     id: "p1",
     name: "💉 Vaccine y tế",
     temp: "2-8°C",
     risk: "high",
     gas: false,
+    price: 450000,
     img: "https://cdn-icons-png.flaticon.com/512/4190/4190876.png"
   },
 
@@ -14,6 +16,7 @@ export const products = [
     temp: "<25°C",
     risk: "danger",
     gas: true,
+    price: 1200000,
     img: "https://cdn-icons-png.flaticon.com/512/3880/3880536.png"
   },
 
@@ -23,6 +26,7 @@ export const products = [
     temp: "-18°C",
     risk: "medium",
     gas: false,
+    price: 350000,
     img: "https://cdn-icons-png.flaticon.com/512/2935/2935394.png"
   },
 
@@ -32,6 +36,7 @@ export const products = [
     temp: "5-10°C",
     risk: "medium",
     gas: false,
+    price: 180000,
     img: "https://cdn-icons-png.flaticon.com/512/415/415733.png"
   },
 
@@ -41,6 +46,7 @@ export const products = [
     temp: "normal",
     risk: "danger",
     gas: true,
+    price: 950000,
     img: "https://cdn-icons-png.flaticon.com/512/9747/9747063.png"
   },
 
@@ -50,6 +56,7 @@ export const products = [
     temp: "15-25°C",
     risk: "high",
     gas: false,
+    price: 520000,
     img: "https://cdn-icons-png.flaticon.com/512/822/822143.png"
   },
 
@@ -59,6 +66,7 @@ export const products = [
     temp: "2-8°C",
     risk: "high",
     gas: false,
+    price: 780000,
     img: "https://cdn-icons-png.flaticon.com/512/2785/2785819.png"
   },
 
@@ -68,6 +76,7 @@ export const products = [
     temp: "normal",
     risk: "danger",
     gas: true,
+    price: 1500000,
     img: "https://cdn-icons-png.flaticon.com/512/785/785116.png"
   },
 
@@ -77,6 +86,8 @@ export const products = [
     temp: "<30°C",
     risk: "low",
     gas: false,
+    price: 640000,
     img: "https://cdn-icons-png.flaticon.com/512/3659/3659899.png"
   }
+
 ];

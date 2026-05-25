@@ -1,4 +1,8 @@
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useState,
+  useMemo
+} from "react";
 
 import {
   User,
@@ -64,7 +68,8 @@ export default function Drivers() {
 
   const [msg, setMsg] =
     useState("");
-
+  const [messages, setMessages] =
+  useState<any[]>([]);
   const [form, setForm] =
     useState({
 
@@ -83,19 +88,62 @@ export default function Drivers() {
 
   useEffect(() => {
 
-    onValue(
+  ////////////////////////////////////////////////////
+  // DRIVERS
+  ////////////////////////////////////////////////////
 
-      ref(db, "drivers"),
+  onValue(
 
-      (snap) => {
+    ref(db, "drivers"),
 
-        setDrivers(
-          snap.val() || {}
-        );
+    (snap) => {
+
+      setDrivers(
+        snap.val() || {}
+      );
+    }
+  );
+
+  ////////////////////////////////////////////////////
+  // TELEGRAM MESSAGES
+  ////////////////////////////////////////////////////
+
+  onValue(
+
+    ref(db, "telegramMessages"),
+
+    (snap) => {
+
+      if (!snap.exists()) {
+
+        setMessages([]);
+
+        return;
       }
+
+      const data = snap.val();
+
+      const arr:any[] =
+
+    Object.entries(data).map(
+      ([id, value]:any)=>({
+
+        id,
+
+        ...value
+      })
     );
 
-  }, []);
+      arr.sort(
+        (a:any, b:any)=>
+          a.time - b.time
+      );
+
+      setMessages(arr);
+    }
+  );
+
+}, []);
 
   ////////////////////////////////////////////////////////////////////////////
   // ROUTE LOCK
@@ -254,12 +302,22 @@ export default function Drivers() {
 
   const sendTelegram = async () => {
 
-    if (!selected?.telegram) {
+  if (!selected?.telegram) {
 
-      alert("Driver chưa có Telegram ID");
+    alert("Driver chưa có Telegram ID");
 
-      return;
-    }
+    return;
+  }
+
+  if (!msg.trim()) {
+    return;
+  }
+
+  try {
+
+    //////////////////////////////////////////////////
+    // SEND TELEGRAM
+    //////////////////////////////////////////////////
 
     await fetch(
 
@@ -267,12 +325,10 @@ export default function Drivers() {
 
       {
 
-        method:"POST",
+        method: "POST",
 
-        headers:{
-
-          "Content-Type":
-            "application/json"
+        headers: {
+          "Content-Type": "application/json"
         },
 
         body: JSON.stringify({
@@ -280,13 +336,59 @@ export default function Drivers() {
           chatId:
             selected.telegram,
 
-          text: msg
+          text:
+            msg
         })
       }
     );
 
+    //////////////////////////////////////////////////
+    // SAVE FIREBASE
+    //////////////////////////////////////////////////
+
+    await set(
+
+      ref(
+        db,
+        "telegramMessages/" +
+        Date.now()
+      ),
+
+      {
+
+        chatId:
+          String(
+            selected.telegram
+          ),
+
+        sender:
+          "control_center",
+
+        receiver:
+          String(
+            selected.telegram
+          ),
+
+        text:
+          msg,
+
+        type:
+          "admin",
+
+        time:
+          Date.now()
+      }
+    );
+
     setMsg("");
-  };
+
+  } catch (err) {
+
+    console.error(err);
+
+    alert("Send failed");
+  }
+};
 
   ////////////////////////////////////////////////////////////////////////////
   // FILTER
@@ -307,7 +409,56 @@ export default function Drivers() {
               search.toLowerCase()
             )
       );
+      
+ //////////////////////////////////////////////////////////////////////////
+// CHAT FILTER
+//////////////////////////////////////////////////////////////////////////
+const selectedMessages =
 
+  messages.filter((m:any)=>{
+
+    const telegramId = String(
+      selected?.telegram || ""
+    ).trim();
+
+    return (
+
+      //////////////////////////////////////////////////
+      // CHAT ID
+      //////////////////////////////////////////////////
+
+      String(
+        m.chatId || ""
+      ).trim()
+
+      === telegramId
+
+      ||
+
+      //////////////////////////////////////////////////
+      // SENDER
+      //////////////////////////////////////////////////
+
+      String(
+        m.sender || ""
+      ).trim()
+
+      === telegramId
+
+      ||
+
+      //////////////////////////////////////////////////
+      // RECEIVER
+      //////////////////////////////////////////////////
+
+      String(
+        m.receiver || ""
+      ).trim()
+
+      === telegramId
+    );
+
+  });
   ////////////////////////////////////////////////////////////////////////////
   // UI
   ////////////////////////////////////////////////////////////////////////////
@@ -1049,7 +1200,109 @@ export default function Drivers() {
                 </div>
 
               </div>
+              {/* CHAT HISTORY */}
 
+<div className="
+  bg-gray-50
+  rounded-[32px]
+  p-5
+  mb-6
+">
+
+  <h2 className="
+    text-xl
+    font-bold
+    text-gray-800
+    mb-4
+  ">
+    Telegram Chat History
+  </h2>
+
+  <div className="
+    h-[350px]
+    overflow-auto
+    space-y-3
+    pr-2
+  ">
+
+    {selectedMessages.map(
+      (m:any, i:number)=>(
+
+      <div
+
+        key={i}
+
+        className={`
+          flex
+
+          ${
+            m.type==="admin"
+              ? "justify-end"
+              : "justify-start"
+          }
+        `}
+      >
+
+        <div className={`
+          max-w-[70%]
+          px-4
+          py-3
+          rounded-3xl
+          shadow
+
+          ${
+            m.type==="admin"
+
+              ? `
+                bg-gradient-to-r
+                from-blue-500
+                to-indigo-500
+                text-white
+              `
+
+              : `
+                bg-white
+                border
+                text-gray-800
+              `
+          }
+        `}>
+
+          <div className="
+            text-sm
+            break-words
+          ">
+            {m.text}
+          </div>
+
+          <div className={`
+            text-[11px]
+            mt-2
+
+            ${
+              m.type==="admin"
+
+                ? "text-white/70"
+
+                : "text-gray-400"
+            }
+          `}>
+
+            {new Date(
+              m.time
+            ).toLocaleString()}
+
+          </div>
+
+        </div>
+
+      </div>
+
+    ))}
+
+  </div>
+
+</div>      
               {/* ACTION */}
 
               <div className="

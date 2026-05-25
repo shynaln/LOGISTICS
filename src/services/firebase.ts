@@ -7,11 +7,11 @@ import {
   set,
   push,
   remove,
- update
+  update
 } from "firebase/database";
 
 //////////////////////////////////////////////////////
-// CONFIG
+// FIREBASE CONFIG
 //////////////////////////////////////////////////////
 
 const firebaseConfig = {
@@ -42,10 +42,15 @@ const firebaseConfig = {
 // INIT
 //////////////////////////////////////////////////////
 
-const app = initializeApp(firebaseConfig);
+const app =
+  initializeApp(firebaseConfig);
 
 export const db =
   getDatabase(app);
+
+console.log(
+  "🔥 Firebase Connected"
+);
 
 //////////////////////////////////////////////////////
 // TYPES
@@ -76,10 +81,14 @@ export type SensorData = {
   gas:number;
 
   gas_status:string;
+
+  lat?:number;
+
+  lon?:number;
 };
 
 //////////////////////////////////////////////////////
-// 🔥 LISTEN VEHICLES
+// VEHICLES
 //////////////////////////////////////////////////////
 
 export function listenTrucks(
@@ -102,7 +111,7 @@ export function listenTrucks(
 }
 
 //////////////////////////////////////////////////////
-// 🔥 LISTEN SENSOR
+// SENSOR
 //////////////////////////////////////////////////////
 
 export function listenSensors(
@@ -151,7 +160,11 @@ export function listenDrivers(
 // ADD DRIVER
 //////////////////////////////////////////////////////
 
-export function addDriver(driver:any){
+export function addDriver(
+
+  driver:any
+
+){
 
   return set(
 
@@ -216,7 +229,7 @@ export function deleteDriver(
 }
 
 //////////////////////////////////////////////////////
-// 🔥 ASSIGN ROUTE
+// ASSIGN ROUTE
 //////////////////////////////////////////////////////
 
 export async function assignRoute(
@@ -232,7 +245,7 @@ export async function assignRoute(
 ){
 
   ////////////////////////////////////////////////////
-  // ASSIGN
+  // ASSIGNMENT
   ////////////////////////////////////////////////////
 
   await set(
@@ -251,7 +264,7 @@ export async function assignRoute(
   );
 
   ////////////////////////////////////////////////////
-  // VEHICLE RUNNING
+  // VEHICLE
   ////////////////////////////////////////////////////
 
   await set(
@@ -294,7 +307,7 @@ export async function assignRoute(
 }
 
 //////////////////////////////////////////////////////
-// 🔥 STOP VEHICLE
+// STOP VEHICLE
 //////////////////////////////////////////////////////
 
 export async function stopVehicle(
@@ -320,10 +333,11 @@ export async function stopVehicle(
 }
 
 //////////////////////////////////////////////////////
-// LISTEN VEHICLES
+// REALTIME GPS
 //////////////////////////////////////////////////////
+
 //////////////////////////////////////////////////////
-// LISTEN REALTIME GPS
+// VEHICLES REALTIME
 //////////////////////////////////////////////////////
 
 export function listenVehicles(
@@ -334,68 +348,23 @@ export function listenVehicles(
 
   onValue(
 
-    ref(db,"data"),
+    ref(db,"vehicles"),
 
     (snap)=>{
 
-      const data = snap.val();
+      const data =
+        snap.val() || {};
 
-      if(!data){
-
-        cb([]);
-        return;
-      }
-
-      cb([
-        {
-          id:"Truck-01",
-
-          lat:Number(data.lat),
-
-          lng:Number(data.lon),
-
-          running:1
-        }
-      ]);
+      cb(data);
     }
   );
 }
 
 //////////////////////////////////////////////////////
-// CHAT
+// TELEGRAM CHAT
 //////////////////////////////////////////////////////
 
-export function sendMessage(
-
-  phone:string,
-
-  message:string
-
-){
-
-  return push(
-
-    ref(
-      db,
-      `messages/${phone}`
-    ),
-
-    {
-
-      message,
-
-      time:Date.now()
-    }
-  );
-}
-
-//////////////////////////////////////////////////////
-// LISTEN CHAT
-//////////////////////////////////////////////////////
-
-export function listenMessages(
-
-  phone:string,
+export function listenTelegramMessages(
 
   cb:(msgs:any[])=>void
 
@@ -405,17 +374,68 @@ export function listenMessages(
 
     ref(
       db,
-      `messages/${phone}`
+      "telegramMessages"
     ),
 
     (snap)=>{
 
-      cb(
+      if(!snap.exists()){
 
-        Object.values(
-          snap.val() || {}
-        )
+        cb([]);
+
+        return;
+      }
+
+      const data =
+        snap.val();
+
+      const arr =
+        Object.values(data);
+
+      arr.sort(
+
+        (a:any,b:any)=>
+
+          a.time - b.time
       );
+
+      cb(arr);
+    }
+  );
+}
+
+//////////////////////////////////////////////////////
+// SEND TELEGRAM MESSAGE
+//////////////////////////////////////////////////////
+
+export async function sendTelegramMessage(
+
+  chatId:string,
+
+  text:string
+
+){
+
+  await fetch(
+
+    "http://localhost:3000/send-telegram",
+
+    {
+
+      method:"POST",
+
+      headers:{
+
+        "Content-Type":
+          "application/json"
+      },
+
+      body: JSON.stringify({
+
+        chatId,
+
+        text
+      })
     }
   );
 }

@@ -7,11 +7,15 @@ import {
   useMap
 } from "react-leaflet";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useState
+} from "react";
 
 import * as L from "leaflet";
 
 export type Vehicle = {
+
   id: string;
 
   driver?: string;
@@ -27,6 +31,7 @@ export type Vehicle = {
 };
 
 type MapViewProps = {
+
   center: [number, number];
 
   vehicles: Vehicle[];
@@ -37,6 +42,7 @@ type MapViewProps = {
 };
 
 const truckIcon = new L.Icon({
+
   iconUrl:
     "https://cdn-icons-png.flaticon.com/512/12178/12178010.png",
 
@@ -48,44 +54,30 @@ const truckIcon = new L.Icon({
 });
 
 function ChangeView({
-  center
+
+  center,
+  selected
+
 }: {
+
   center: [number, number];
+
+  selected?: Vehicle;
 }) {
 
   const map = useMap();
 
   useEffect(() => {
+
+    if (
+      selected?.id !== "gps-live"
+    ) return;
 
     map.flyTo(center, 17, {
       duration: 1.5
     });
 
-  }, [center, map]);
-
-  return null;
-}
-
-function FitBounds({
-  points
-}: {
-  points: [number, number][];
-}) {
-
-  const map = useMap();
-
-  useEffect(() => {
-
-    if (!points.length) return;
-
-    const bounds =
-      L.latLngBounds(points);
-
-    map.fitBounds(bounds, {
-      padding: [30, 30]
-    });
-
-  }, [points, map]);
+  }, [center, map, selected]);
 
   return null;
 }
@@ -117,15 +109,22 @@ async function fetchGPX(
     const points:
       [number, number][] = [];
 
-    for (let i = 0; i < trkpts.length; i++) {
+    for (
+      let i = 0;
+      i < trkpts.length;
+      i++
+    ) {
 
       const lat =
-        trkpts[i].getAttribute("lat");
+        trkpts[i]
+          .getAttribute("lat");
 
       const lon =
-        trkpts[i].getAttribute("lon");
+        trkpts[i]
+          .getAttribute("lon");
 
-      if (!lat || !lon) continue;
+      if (!lat || !lon)
+        continue;
 
       points.push([
         Number(lat),
@@ -147,130 +146,55 @@ async function fetchGPX(
 }
 
 export default function MapView({
+
   center,
   vehicles,
   route,
   selected
+
 }: MapViewProps) {
 
-  const [routePoints, setRoutePoints] =
-    useState<[number, number][]>([]);
-
   const [
-    vehiclePositions,
-    setVehiclePositions
-  ] = useState<
-    Record<string, [number, number]>
-  >({});
-
-  const routeIndexRef =
-    useRef<Record<string, number>>({});
-
-  useEffect(() => {
-
-    if (!route) {
-
-      setRoutePoints([]);
-
-      return;
-    }
-
-    fetchGPX(route)
-      .then(setRoutePoints);
-
-  }, [route]);
+  routes,
+  setRoutes
+] = useState<
+  Record<
+    string,
+    [number, number][]
+  >
+>({});
 
   useEffect(() => {
 
-    let intervals:
-      ReturnType<
-        typeof setInterval
-      >[] = [];
+    async function loadRoutes() {
 
-    (
-      Array.isArray(vehicles)
-      ? vehicles
-      : []
-    ).forEach(async (vehicle) => {
+      const loaded:
+        Record<
+          string,
+          [number, number][]
+        > = {};
 
-      if (!vehicle.route) return;
+      for (const v of vehicles) {
 
-      const points =
-        await fetchGPX(
-          vehicle.route
-        );
+        if (!v.route)
+          continue;
 
-      if (!points.length) return;
+        if (loaded[v.route])
+          continue;
 
-      if (
-        !vehiclePositions[
-          vehicle.id
-        ]
-      ) {
-
-        setVehiclePositions(prev => ({
-          ...prev,
-
-          [vehicle.id]:
-            points[0]
-        }));
-
-        routeIndexRef.current[
-          vehicle.id
-        ] = 0;
-      }
-
-      if (!vehicle.running) return;
-
-      const interval =
-        setInterval(() => {
-
-          const currentIndex =
-            routeIndexRef.current[
-              vehicle.id
-            ] || 0;
-
-          if (
-            currentIndex >=
-            points.length - 1
-          ) {
-
-            clearInterval(
-              interval
-            );
-
-            return;
-          }
-
-          const nextIndex =
-            currentIndex + 1;
-
-          routeIndexRef.current[
-            vehicle.id
-          ] = nextIndex;
-
-          setVehiclePositions(
-            prev => ({
-
-              ...prev,
-
-              [vehicle.id]:
-                points[nextIndex]
-            })
+        const points =
+          await fetchGPX(
+            v.route
           );
 
-        }, 1000);
+        loaded[v.route] =
+          points;
+      }
 
-      intervals.push(interval);
+      setRoutes(loaded);
+    }
 
-    });
-
-    return () => {
-
-      intervals.forEach(i =>
-        clearInterval(i)
-      );
-    };
+    loadRoutes();
 
   }, [vehicles]);
 
@@ -290,153 +214,219 @@ export default function MapView({
   return (
 
     <MapContainer
+
       center={center}
+
       zoom={13}
+
       style={{
+
         height: "100%",
+
         width: "100%"
       }}
     >
 
       <TileLayer
-        url="
-https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
-"
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
 
-      {center[0] !== 0 &&
-      center[1] !== 0 && (
+      <ChangeView
 
-        <ChangeView
-          center={center}
-        />
+        center={center}
 
-      )}
-
-      {routePoints.length > 0 && (
-
-        <FitBounds
-          points={routePoints}
-        />
-
-      )}
-
-      {route &&
-        routePoints.length > 0 && (
-
-        <Polyline
-          positions={routePoints}
-          color={
-            routeColor[route]
-              || "#ef4444"
-          }
-          weight={6}
-          opacity={0.8}
-        />
-      )}
+        selected={selected}
+      />
 
       {
+        Object.entries(routes)
+          .map(([path, points]: any) => (
+
+          <Polyline
+
+            key={`${path}-${points.length}`}
+
+            positions={points}
+
+            color={
+              routeColor[path]
+                || "#ef4444"
+            }
+
+            weight={6}
+
+            opacity={0.8}
+          />
+        ))
+      }
+
+      {
+        vehicles.map((v) => {
+
+          let position:
+            [number, number]
+            | null = null;
+
+          if (
+
+            v.lat !== undefined &&
+
+            v.lng !== undefined
+
+          ) {
+
+            position = [
+              v.lat,
+              v.lng
+            ];
+          }
+
+          else if (
+            v.route &&
+            routes[v.route]
+          ) {
+
+            const points =
+              routes[v.route] || [];
+
+            if (
+              points.length > 0
+            ) {
+
+              let offset = 0;
+
+if (v.id === "xe1") {
+
+  offset = 0;
+}
+
+else if (v.id === "xe2") {
+
+  offset = 30;
+}
+
+else if (v.id === "xe3") {
+
+  offset = 60;
+}
+
+const index =
+  Math.floor(
+
+    (
       (
-        Array.isArray(vehicles)
-        ? vehicles
-        : []
-      ).map((v) => {
+        (v.progress || 0) + offset
+      ) / 100
+    )
 
-        const livePos:
-          [number, number] | null =
+    * points.length
+  );
+    if (points.length > 0) {
 
-          v.lat !== undefined &&
-          v.lng !== undefined
+  position =
+    points[
+      Math.min(
+        index % points.length,
+        points.length - 1
+      )
+    ];
+}
+            }
+          }
 
-            ? [v.lat, v.lng]
+          if (!position)
+            return null;
 
-            : null;
+          return (
 
-        const demoPos =
-          vehiclePositions[
-            v.id
-          ];
+            <Marker
 
-        const pos =
-          livePos || demoPos;
+              key={`${v.id}-${v.route}`}
 
-        if (!pos) return null;
+              position={position}
 
-        return (
+              icon={truckIcon}
+            >
 
-          <Marker
-            key={v.id}
-            position={pos}
-            icon={truckIcon}
-          >
+              <Popup>
 
-            <Popup>
-
-              <div
-                style={{
-                  fontSize: 13,
-                  minWidth: 160
-                }}
-              >
-
-                <b>
-                  🚚
-                  {" "}
-                  {v.id.toUpperCase()}
-                </b>
-
-                <br />
-                <br />
-
-                Driver:
-                {" "}
-                {v.driver}
-
-                <br />
-
-                Status:
-                {" "}
-
-                <span
+                <div
                   style={{
-                    color:
-                      v.running
-                        ? "green"
-                        : "red",
-
-                    fontWeight: "bold"
+                    fontSize: 13,
+                    minWidth: 160
                   }}
                 >
 
+                  <b>
+                    🚚
+                    {" "}
+                    {v.id.toUpperCase()}
+                  </b>
+
+                  <br />
+                  <br />
+
+                  Driver:
+                  {" "}
+                  {v.driver}
+
+                  <br />
+
+                  Status:
+                  {" "}
+
+                  <span
+                    style={{
+
+                      color:
+                        v.running
+                          ? "green"
+                          : "red",
+
+                      fontWeight:
+                        "bold"
+                    }}
+                  >
+
+                    {
+                      v.running
+                        ? "RUNNING"
+                        : "STOP"
+                    }
+
+                  </span>
+
+                  <br />
+
+                  Progress:
+                  {" "}
                   {
-                    v.running
-                      ? "RUNNING"
-                      : "STOP"
+                    v.progress || 0
                   }
+                  %
 
-                </span>
+                  <br />
 
-                <br />
+                  Latitude:
+                  {" "}
+                  {position[0]
+                    .toFixed(6)}
 
-                Latitude:
-                {" "}
-                {pos[0]
-                  .toFixed(6)}
+                  <br />
 
-                <br />
+                  Longitude:
+                  {" "}
+                  {position[1]
+                    .toFixed(6)}
 
-                Longitude:
-                {" "}
-                {pos[1]
-                  .toFixed(6)}
+                </div>
 
-              </div>
+              </Popup>
 
-            </Popup>
-
-          </Marker>
-        );
-      })}
+            </Marker>
+          );
+        })
+      }
 
     </MapContainer>
   );

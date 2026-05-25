@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
 
-import MapView from "./components/MapView";
-
 import Tracking from "./pages/Tracking";
 import Routes from "./pages/Routes";
 import Drivers from "./pages/Drivers";
@@ -10,7 +8,6 @@ import Orders from "./pages/Orders";
 import "./vehicleEngine";
 
 import {
-  listenVehicles,
   listenSensors
 } from "./services/firebase";
 
@@ -21,13 +18,10 @@ import {
 } from "firebase/database";
 
 import {
-  Truck,
   CheckCircle,
-  AlertTriangle,
   Thermometer,
   Droplets,
   Flame,
-  Activity,
   MapPinned
 } from "lucide-react";
 
@@ -176,7 +170,10 @@ function Dashboard() {
   // STATES
   ////////////////////////////////////////////////////
 
-  const [vehicles, setVehicles] =
+  const [drivers, setDrivers] =
+    useState<any[]>([]);
+
+  const [orders, setOrders] =
     useState<any[]>([]);
 
   const [sensor, setSensor] =
@@ -186,20 +183,13 @@ function Dashboard() {
 
       humidity:0,
 
-      gas:0,
-
       gas_status:"AN TOAN"
     });
-
-  const [gasAlertCount, setGasAlertCount] =
-    useState(0);
 
   const [dashboard, setDashboard] =
     useState({
 
-      delivered:0,
-
-      currentVehicle:0
+      delivered:0
     });
 
   ////////////////////////////////////////////////////
@@ -209,37 +199,22 @@ function Dashboard() {
   useEffect(()=>{
 
     //////////////////////////////////////////////////
-    // GPS
-    //////////////////////////////////////////////////
-
-    listenVehicles((data:any)=>{
-
-      if(Array.isArray(data)){
-
-        setVehicles(data);
-
-      }else{
-
-        setVehicles([]);
-      }
-
-    });
-
-    //////////////////////////////////////////////////
     // SENSOR
     //////////////////////////////////////////////////
 
     listenSensors((data:any)=>{
 
-      setSensor(data);
+      setSensor({
 
-      if(
-        data.gas_status &&
-        data.gas_status !== "AN TOAN"
-      ){
-        setGasAlertCount(prev=>prev+1);
-      }
+        temperature:
+          data.temperature || 0,
 
+        humidity:
+          data.humidity || 0,
+
+        gas_status:
+          data.gas_status || "AN TOAN"
+      });
     });
 
     //////////////////////////////////////////////////
@@ -260,11 +235,60 @@ function Dashboard() {
         setDashboard({
 
           delivered:
-            data.delivered || 0,
-
-          currentVehicle:
-            data.currentVehicle || 0
+            data.delivered || 0
         });
+      }
+    );
+
+    //////////////////////////////////////////////////
+    // DRIVERS
+    //////////////////////////////////////////////////
+
+    onValue(
+
+      ref(db,"drivers"),
+
+      (snap)=>{
+
+        const data = snap.val() || {};
+
+        const arr = Object.entries(data).map(
+
+          ([id, value]:any)=>({
+
+            id,
+
+            ...value
+          })
+        );
+
+        setDrivers(arr);
+      }
+    );
+
+    //////////////////////////////////////////////////
+    // ORDERS
+    //////////////////////////////////////////////////
+
+    onValue(
+
+      ref(db,"orders"),
+
+      (snap)=>{
+
+        const data = snap.val() || {};
+
+        const arr = Object.entries(data).map(
+
+          ([id, value]:any)=>({
+
+            id,
+
+            ...value
+          })
+        );
+
+        setOrders(arr);
       }
     );
 
@@ -288,12 +312,19 @@ function Dashboard() {
 
         <div>
 
-          <h1 className="text-4xl font-bold text-gray-800">
+          <h1 className="
+            text-4xl
+            font-bold
+            text-gray-800
+          ">
             Dashboard
           </h1>
 
-          <p className="text-gray-500 mt-1">
-            Smart logistics monitoring system
+          <p className="
+            text-gray-500
+            mt-1
+          ">
+            Smart logistics monitoring realtime
           </p>
 
         </div>
@@ -318,7 +349,7 @@ function Dashboard() {
           " />
 
           <span className="font-semibold">
-            Realtime Active
+            SYSTEM ONLINE
           </span>
 
         </div>
@@ -327,13 +358,24 @@ function Dashboard() {
 
       {/* STATS */}
 
-      <div className="grid grid-cols-4 gap-5">
+      <div className="
+        grid
+        grid-cols-4
+        gap-5
+      ">
 
         <Stat
-          title="Total Vehicles"
-          value="3"
-          icon={Truck}
-          color="blue"
+          title="Drivers"
+          value={drivers.length}
+          icon={MapPinned}
+          color="purple"
+        />
+
+        <Stat
+          title="Orders"
+          value={orders.length}
+          icon={CheckCircle}
+          color="red"
         />
 
         <Stat
@@ -344,24 +386,23 @@ function Dashboard() {
         />
 
         <Stat
-          title="Gas Alerts"
-          value={gasAlertCount}
-          icon={AlertTriangle}
-          color="red"
-        />
-
-        <Stat
-          title="Vehicle Progress"
-          value={`${dashboard.currentVehicle}%`}
-          icon={Activity}
-          color="purple"
+          title="Online"
+          value={"ACTIVE"}
+          icon={CheckCircle}
+          color="blue"
         />
 
       </div>
 
       {/* SENSOR */}
 
-      <div className="grid grid-cols-3 gap-5">
+      <div className="
+        grid
+        grid-cols-1
+        md:grid-cols-2
+        xl:grid-cols-3
+        gap-5
+      ">
 
         <SensorCard
           title="Temperature"
@@ -379,255 +420,133 @@ function Dashboard() {
 
         <SensorCard
           title="Gas Status"
-          value={sensor.gas_status}
+          value={`${sensor.gas_status}`}
           icon={Flame}
-          color="from-pink-500 to-rose-500"
+          color="from-red-500 to-pink-500"
         />
 
       </div>
 
-      {/* MAP */}
+      {/* DRIVERS */}
 
-      <div className="grid grid-cols-3 gap-5 h-[560px]">
+      <div className="
+        bg-white/70
+        backdrop-blur-2xl
+        rounded-3xl
+        shadow-2xl
+        border
+        p-6
+      ">
 
-        <div className="
-          col-span-2
-          bg-white/70
-          backdrop-blur-2xl
-          rounded-3xl
-          shadow-2xl
-          border
-          overflow-hidden
-        ">
+        <div className="mb-6">
 
-          <div className="
-            px-6
-            py-4
-            border-b
-            flex
-            justify-between
-            items-center
+          <h2 className="
+            text-2xl
+            font-bold
+            text-gray-800
           ">
+            Driver List
+          </h2>
 
-            <div>
-
-              <h2 className="font-bold text-lg">
-                🗺️ Map Overview
-              </h2>
-
-              <p className="text-sm text-gray-500">
-                Live GPS tracking
-              </p>
-
-            </div>
-
-            <div className="
-              bg-blue-100
-              text-blue-600
-              px-3
-              py-1
-              rounded-full
-              text-sm
-              font-medium
-            ">
-
-              LIVE
-
-            </div>
-
-          </div>
-
-          <div className="h-[490px]">
-
-            {
-              vehicles.length > 0 && (
-
-                <MapView
-
-                  center={[
-                    Number(vehicles[0].lat),
-                    Number(vehicles[0].lng)
-                  ]}
-
-                  vehicles={vehicles}
-
-                />
-
-              )
-            }
-
-          </div>
+          <p className="
+            text-sm
+            text-gray-500
+          ">
+            Firebase realtime drivers
+          </p>
 
         </div>
 
-        {/* RIGHT PANEL */}
+        <div className="
+          overflow-auto
+        ">
 
-        <div className="flex flex-col gap-5">
-
-          {/* CURRENT VEHICLE */}
-
-          <div className="
-            bg-white/70
-            backdrop-blur-2xl
-            rounded-3xl
-            shadow-2xl
-            p-6
-            border
+          <table className="
+            w-full
           ">
 
-            <div className="
-              flex
-              justify-between
-              items-center
-            ">
+            <thead>
 
-              <div>
-
-                <p className="text-gray-500">
-                  Current Vehicle
-                </p>
-
-                <h2 className="
-                  text-5xl
-                  font-bold
-                  text-blue-600
-                  mt-2
-                ">
-
-                  {dashboard.currentVehicle}%
-
-                </h2>
-
-              </div>
-
-              <div className="
-                w-16
-                h-16
-                rounded-2xl
-                bg-blue-100
-                text-blue-600
-                flex
-                items-center
-                justify-center
+              <tr className="
+                text-left
+                border-b
               ">
 
-                <Truck size={32} />
+                <th className="py-3">Name</th>
+                <th className="py-3">Phone</th>
+                <th className="py-3">Telegram</th>
+                <th className="py-3">Truck</th>
+                <th className="py-3">Route</th>
+                <th className="py-3">Status</th>
 
-              </div>
+              </tr>
 
-            </div>
+            </thead>
 
-            <div className="
-              w-full
-              h-4
-              bg-gray-200
-              rounded-full
-              mt-6
-              overflow-hidden
-            ">
+            <tbody>
 
-              <div
+              {drivers.map((d:any)=>(
 
-                className="
-                  h-4
-                  rounded-full
-                  bg-gradient-to-r
-                  from-blue-500
-                  to-indigo-500
-                  transition-all
-                  duration-700
-                "
+                <tr
+                  key={d.id}
+                  className="
+                    border-b
+                    hover:bg-gray-50
+                  "
+                >
 
-                style={{
-                  width:
-                    `${dashboard.currentVehicle}%`
-                }}
-              />
+                  <td className="
+                    py-4
+                    font-semibold
+                  ">
+                    {d.name}
+                  </td>
 
-            </div>
+                  <td>{d.phone}</td>
 
-          </div>
+                  <td>{d.telegram}</td>
 
-          {/* GPS INFO */}
+                  <td>{d.truck}</td>
 
-          <div className="
-            bg-white/70
-            backdrop-blur-2xl
-            rounded-3xl
-            shadow-2xl
-            p-6
-            border
-            flex-1
-          ">
+                  <td>{d.route}</td>
 
-            <div className="
-              flex
-              items-center
-              gap-3
-              mb-5
-            ">
+                  <td>
 
-              <div className="
-                w-12
-                h-12
-                rounded-2xl
-                bg-green-100
-                text-green-600
-                flex
-                items-center
-                justify-center
-              ">
+                    <span className={`
+                      px-3
+                      py-1
+                      rounded-full
+                      text-xs
+                      font-bold
 
-                <MapPinned />
+                      ${
+                        d.status === "online"
 
-              </div>
+                        ? `
+                          bg-green-500
+                          text-white
+                        `
 
-              <div>
+                        : `
+                          bg-red-500
+                          text-white
+                        `
+                      }
+                    `}>
 
-                <h2 className="font-bold">
-                  GPS Information
-                </h2>
+                      {d.status}
 
-                <p className="text-sm text-gray-500">
-                  Realtime coordinates
-                </p>
+                    </span>
 
-              </div>
+                  </td>
 
-            </div>
+                </tr>
 
-            <div className="space-y-4">
+              ))}
 
-              <InfoRow
-                label="Latitude"
-                value={
-                  vehicles[0]?.lat
-                    ?.toFixed(6) || "-"
-                }
-              />
+            </tbody>
 
-              <InfoRow
-                label="Longitude"
-                value={
-                  vehicles[0]?.lng
-                    ?.toFixed(6) || "-"
-                }
-              />
-
-              <InfoRow
-                label="Vehicle ID"
-                value="Truck-01"
-              />
-
-              <InfoRow
-                label="Status"
-                value="ONLINE"
-                green
-              />
-
-            </div>
-
-          </div>
+          </table>
 
         </div>
 
@@ -847,52 +766,6 @@ function SensorCard({
         </div>
 
       </div>
-
-    </div>
-  );
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// INFO ROW
-////////////////////////////////////////////////////////////////////////////////
-
-function InfoRow({
-
-  label,
-  value,
-  green
-
-}:any){
-
-  return (
-
-    <div className="
-      flex
-      justify-between
-      items-center
-      bg-gray-50
-      rounded-2xl
-      px-4
-      py-3
-    ">
-
-      <span className="text-gray-500">
-        {label}
-      </span>
-
-      <span className={`
-        font-semibold
-
-        ${
-          green
-            ? "text-green-600"
-            : "text-gray-800"
-        }
-      `}>
-
-        {value}
-
-      </span>
 
     </div>
   );

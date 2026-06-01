@@ -1,12 +1,55 @@
+
 import React from "react";
+
 import ReactDOM from "react-dom/client";
+
+import {
+
+  BrowserRouter,
+
+  Routes,
+
+  Route
+
+} from "react-router-dom";
+
 import App from "./App";
 
-import "leaflet/dist/leaflet.css";
-import "./index.css"; // ✅ ĐÚNG FILE
+import CustomerApp from "./customer/CustomerApp";
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
+import "leaflet/dist/leaflet.css";
+
+import "./index.css";
+
+ReactDOM.createRoot(
+
+  document.getElementById("root")!
+
+).render(
+
   <React.StrictMode>
-    <App />
+
+    <BrowserRouter>
+
+      <Routes>
+
+        {/* ADMIN */}
+
+        <Route
+          path="/*"
+          element={<App />}
+        />
+
+        {/* CUSTOMER */}
+
+        <Route
+          path="/customer/*"
+          element={<CustomerApp />}
+        />
+
+      </Routes>
+
+    </BrowserRouter>
+
   </React.StrictMode>
 );

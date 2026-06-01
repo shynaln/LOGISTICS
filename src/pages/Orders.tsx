@@ -1,38 +1,75 @@
-import { useState, useEffect, useRef } from "react";
-
-import { products } from "../data/products";
 
 import {
+
+  useEffect,
+
+  useState
+
+} from "react";
+
+import {
+
   getDatabase,
+
   ref,
-  push,
-  set,
+
   onValue,
+
   update,
- remove
+
+  remove
+
 } from "firebase/database";
 
 import {
-  ShoppingCart,
-  Truck,
+
   Package,
+
+  User,
+
+  Truck,
+
+  Clock3,
+
   CheckCircle2,
+
   Activity,
+
   Trash2,
-  Plus,
-  Minus,
-  Boxes,
-  Rocket
+
+  MapPinned
+
 } from "lucide-react";
 
-const TRUCKS = ["R1", "R2", "R3"];
+////////////////////////////////////////////////////////////////////////////////
+// VEHICLES
+////////////////////////////////////////////////////////////////////////////////
+
+const VEHICLES = [
+
+  "R1",
+
+  "R2",
+
+  "R3"
+];
+
+////////////////////////////////////////////////////////////////////////////////
+// ORDERS
+////////////////////////////////////////////////////////////////////////////////
 
 export default function Orders() {
 
-  const db = getDatabase();
+  ////////////////////////////////////////////////////
+  // FIREBASE
+  ////////////////////////////////////////////////////
 
-  const [cart, setCart] =
-    useState<any>({});
+  const db =
+    getDatabase();
+
+  ////////////////////////////////////////////////////
+  // STATES
+  ////////////////////////////////////////////////////
 
   const [orders, setOrders] =
     useState<any[]>([]);
@@ -40,359 +77,238 @@ export default function Orders() {
   const [vehicles, setVehicles] =
     useState<any>({});
 
-  const [selectedTruck, setSelectedTruck] =
-    useState("R1");
+  const [stats, setStats] =
+    useState({
 
-  const [deliveredCount, setDeliveredCount] =
-    useState(0);
+      total:0,
 
-  const [avgProgress, setAvgProgress] =
-    useState(0);
+      pending:0,
 
-  const dingRef =
-    useRef<HTMLAudioElement | null>(null);
+      running:0,
 
-  const played =
-    useRef<any>({});
+      delivered:0
+    });
 
-  ////////////////////////////////////////////////////////////////////////////
-  // FIREBASE
-  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////
+  // FIREBASE LISTENER
+  ////////////////////////////////////////////////////
 
-  useEffect(() => {
+  useEffect(()=>{
+
+    //////////////////////////////////////////////////
+    // ORDERS
+    //////////////////////////////////////////////////
 
     onValue(
 
       ref(db, "orders"),
 
-      (snap) => {
+      (snapshot)=>{
 
         const data =
-          snap.val() || {};
+          snapshot.val() || {};
 
         const arr =
 
           Object.entries(data)
 
-            .map(([id, v]) => ({
+            .map(([id, value])=>({
 
               id,
 
-              ...(v as any)
+              ...(value as any)
+            }))
 
-            }));
+            .reverse();
 
         setOrders(arr);
 
-        setDeliveredCount(
-          arr.length
-        );
+        //////////////////////////////////////////////////
+        // STATS
+        //////////////////////////////////////////////////
+
+        setStats({
+
+          total:
+            arr.length,
+
+          pending:
+
+            arr.filter(
+              (o:any)=>
+                o.status === "pending"
+            ).length,
+
+          running:
+
+            arr.filter(
+              (o:any)=>
+                o.status === "running"
+            ).length,
+
+          delivered:
+
+            arr.filter(
+              (o:any)=>
+                o.status === "delivered"
+            ).length
+        });
       }
     );
+
+    //////////////////////////////////////////////////
+    // VEHICLES
+    //////////////////////////////////////////////////
 
     onValue(
 
       ref(db, "vehicles"),
 
-      (snap) => {
+      (snapshot)=>{
 
         setVehicles(
-          snap.val() || {}
+          snapshot.val() || {}
         );
       }
     );
 
-  }, []);
+  },[]);
 
-  ////////////////////////////////////////////////////////////////////////////
-  // UPDATE
-  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////
+  // AUTO UPDATE STATUS
+  ////////////////////////////////////////////////////
 
-  useEffect(() => {
+  useEffect(()=>{
 
-    Object.entries(vehicles)
+    orders.forEach(async(order)=>{
 
-      .forEach(
+      if(!order.vehicle)
+        return;
 
-        ([truck, v]: any) => {
+      const vehicle =
 
-          const percent =
+        vehicles?.[order.vehicle];
 
-            Math.floor(
-              v.percent || 0
-            );
+      if(!vehicle)
+        return;
 
-          orders.forEach(async (o) => {
+      //////////////////////////////////////////////////
+      // RUNNING
+      //////////////////////////////////////////////////
 
-            if (
-              o.truck !== truck
-            ) return;
-
-            const status =
-
-              percent >= 100
-
-                ? "delivered"
-
-                : percent > 0
-
-                ? "running"
-
-                : "pending";
-
-            await update(
-
-              ref(
-                db,
-                "orders/" + o.id
-              ),
-
-              {
-
-                progress: percent,
-
-                status
-              }
-            );
-
-            //////////////////////////////////////////////////
-            // SOUND
-            //////////////////////////////////////////////////
-
-            if (
-
-              percent >= 100 &&
-
-              !played.current[o.id]
-
-            ) {
-
-              played.current[o.id] = true;
-
-              dingRef.current?.play();
-            }
-
-          });
-
-        }
+      const running = Number(
+        vehicle.running || 0
       );
 
-    //////////////////////////////////////////////////////
-    // AVG
-    //////////////////////////////////////////////////////
+      //////////////////////////////////////////////////
+      // STATUS
+      //////////////////////////////////////////////////
 
-    if (orders.length) {
+      let status =
+        "pending";
 
-      const total =
+      if(running === 1){
 
-        orders.reduce(
+        status =
+          "running";
+      }
 
-          (sum, o) =>
+      //////////////////////////////////////////////////
+      // DELIVERED
+      //////////////////////////////////////////////////
 
-            sum + (o.progress || 0),
+      if(
+        Number(vehicle.percent || 0)
+        >= 100
+      ){
 
-          0
-        );
+        status =
+          "delivered";
+      }
 
-      const avg =
+      //////////////////////////////////////////////////
+      // UPDATE
+      //////////////////////////////////////////////////
 
-        Math.floor(
-          total / orders.length
-        );
+const vehicleProgress =
+  Number(vehicle.percent || 0);
 
-      setAvgProgress(avg);
+const orderProgress =
+  Number(order.progress || 0);
 
-      ////////////////////////////////////////////////////
-      // PUSH FIREBASE
-      ////////////////////////////////////////////////////
+if (
+  order.status !== status ||
+  orderProgress !== vehicleProgress
+) {
 
-      update(
-
-        ref(db, "dashboard"),
-
-        {
-
-          delivered:
-            deliveredCount,
-
-          currentVehicle:
-            avg
-        }
-      );
+  await update(
+    ref(
+      db,
+      `orders/${order.id}`
+    ),
+    {
+      status,
+      progress:
+      Number(
+        vehicleProgress.toFixed(2)
+      )
     }
+  );
+}
+    });
 
-  }, [vehicles, orders, deliveredCount]);
+  }, [vehicles, orders]);
 
-  ////////////////////////////////////////////////////////////////////////////
-  // ADD
-  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////
+  // ASSIGN VEHICLE
+  ////////////////////////////////////////////////////
 
-  const add = (id:string) => {
+  async function assignVehicle(
 
-    setCart((p:any)=>({
+    orderId:string,
 
-      ...p,
+    vehicle:string
 
-      [id]:
-        (p[id] || 0) + 1
-    }));
-  };
+  ){
 
-  ////////////////////////////////////////////////////////////////////////////
-  // REMOVE
-  ////////////////////////////////////////////////////////////////////////////
+    await update(
 
-  const removeItem = (id:string) => {
-
-    setCart((p:any)=>({
-
-      ...p,
-
-      [id]:
-
-        Math.max(
-          (p[id] || 0) - 1,
-          0
-        )
-    }));
-  };
-
-  ////////////////////////////////////////////////////////////////////////////
-  // ORDER
-  ////////////////////////////////////////////////////////////////////////////
-
-  const placeOrder = async () => {
-
-    if (
-      !Object.keys(cart).length
-    ) return;
-
-    const newRef =
-
-      push(
-        ref(db, "orders")
-      );
-
-    await set(
-
-      newRef,
+      ref(
+        db,
+        `orders/${orderId}`
+      ),
 
       {
 
-        items:
+        vehicle,
 
-  Object.entries(cart)
-
-    .map(([id,q]:any)=>{
-
-      const product =
-
-        products.find(
-          p=>p.id===id
-        );
-
-      return {
-
-        id,
-
-        name:
-          product?.name,
-
-        quantity:q,
-
-        price:
-          product?.price || 0,
-
-        total:
-
-          (
-            product?.price || 0
-          ) * q
-      };
-
-    }),
-
-totalItems,
-
-totalPrice,
-
-        truck:
-          selectedTruck,
-
-        progress: 0,
-
-        status:
-          "pending",
-
-        createdAt:
-          Date.now()
+        status:"pending"
       }
     );
+  }
 
-    setCart({});
-  };
-
-  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////
   // DELETE
-  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////
 
-  const deleteOrder = async (
+  async function deleteOrder(
+
     id:string
-  ) => {
+
+  ){
 
     await remove(
 
       ref(
         db,
-        "orders/" + id
+        `orders/${id}`
       )
     );
-  };
+  }
 
-  ////////////////////////////////////////////////////////////////////////////
-  // TOTAL
-  ////////////////////////////////////////////////////////////////////////////
-
-  const totalItems =
-
-    (Object.values(cart) as number[])
-
-      .reduce(
-        (a,b)=>a+b,
-        0
-      );
-  const totalPrice =
-
-  Object.entries(cart)
-
-    .reduce(
-
-      (sum,[id,q]:any)=>{
-
-        const product =
-
-          products.find(
-            p=>p.id===id
-          );
-
-        return (
-
-          sum +
-
-          (
-            (product?.price || 0)
-
-            * q
-          )
-        );
-
-      },
-
-      0
-    );
-  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////
   // UI
-  ////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////
 
   return (
 
@@ -421,320 +337,238 @@ totalPrice,
             font-bold
             text-gray-800
           ">
+
             Orders Center
+
           </h1>
 
           <p className="
             text-gray-500
-            mt-1
+            mt-2
           ">
-            Smart logistics ordering system
+
+            Smart logistics management
+
           </p>
-
-        </div>
-
-        <div className="
-          flex
-          gap-5
-        ">
-
-          <TopCard
-            title="Delivered"
-            value={deliveredCount}
-            icon={<CheckCircle2 />}
-            color="green"
-          />
-
-          <TopCard
-            title="Vehicle Progress"
-            value={`${avgProgress}%`}
-            icon={<Activity />}
-            color="blue"
-          />
 
         </div>
 
       </div>
 
-      {/* MAIN */}
+      {/* STATS */}
 
       <div className="
         grid
-        grid-cols-3
+        grid-cols-4
+        gap-5
+        mb-8
+      ">
+
+        <TopCard
+          title="Total Orders"
+          value={stats.total}
+          icon={<Package />}
+          color="blue"
+        />
+
+        <TopCard
+          title="Pending"
+          value={stats.pending}
+          icon={<Clock3 />}
+          color="orange"
+        />
+
+        <TopCard
+          title="Running"
+          value={stats.running}
+          icon={<Activity />}
+          color="purple"
+        />
+
+        <TopCard
+          title="Delivered"
+          value={stats.delivered}
+          icon={<CheckCircle2 />}
+          color="green"
+        />
+
+      </div>
+
+      {/* ORDERS */}
+
+      <div className="
+        grid
+        grid-cols-2
         gap-6
       ">
 
-        {/* PRODUCTS */}
+        {
 
-        <div className="
-          col-span-2
-          grid
-          grid-cols-3
-          gap-5
-        ">
-
-          {products.map((p)=>(
+          orders.map((order:any)=>(
 
             <div
 
-              key={p.id}
+              key={order.id}
 
               className="
                 bg-white/70
                 backdrop-blur-2xl
-                rounded-[32px]
+                rounded-[36px]
                 shadow-2xl
                 border
-                p-5
-                hover:scale-[1.02]
-                transition-all
-                duration-300
-                relative
-                overflow-hidden
+                p-6
               "
             >
 
-              <div className={`
-                absolute
-                top-0
-                left-0
-                w-full
-                h-1
-
-                ${
-                  p.risk==="danger"
-
-                    ? `
-                      bg-gradient-to-r
-                      from-red-500
-                      to-pink-500
-                    `
-
-                    : p.risk==="high"
-
-                    ? `
-                      bg-gradient-to-r
-                      from-orange-500
-                      to-red-500
-                    `
-
-                    : `
-                      bg-gradient-to-r
-                      from-blue-500
-                      to-indigo-500
-                    `
-                }
-              `} />
+              {/* TOP */}
 
               <div className="
                 flex
-                justify-center
-                mb-4
+                justify-between
+                items-start
+                mb-5
               ">
 
-                <img
+                <div>
 
-                  src={p.img}
-
-                  className="
-                    h-28
-                    object-contain
-                    drop-shadow-lg
-                  "
-                />
-
-              </div>
-
-              <div className="
-                text-center
-              ">
-
-                <h2 className="
-                  font-bold
-                  text-gray-800
-                  text-lg
-                ">
-                  {p.name}
-                </h2>
-                <h3 className="
+                  <h2 className="
   text-2xl
-  font-bold
-  text-green-600
-  mt-3
+  font-black
+  text-blue-600
 ">
-  {Number(p.price || 0).toLocaleString()}đ
-</h3>
-                <p className="
-                  text-sm
-                  text-gray-500
-                  mt-1
-                ">
-                  Temp: {p.temp}
-                </p>
 
-              </div>
+  {
+    order.orderCode ||
+    order.id
+  }
 
-              <div className="
-                flex
-                justify-center
-                items-center
-                gap-4
-                mt-5
-              ">
+</h2>
 
-                <button
+                  <p className="
+                    text-gray-500
+                    mt-1
+                  ">
 
-                  onClick={()=>
-                    removeItem(p.id)
-                  }
+                    Customer Order
 
-                  className="
-                    w-10
-                    h-10
-                    rounded-2xl
-                    bg-gray-100
-                    hover:bg-gray-200
-                    flex
-                    items-center
-                    justify-center
-                    transition-all
-                  "
-                >
-
-                  <Minus size={18} />
-
-                </button>
-
-                <div className="
-                  w-12
-                  h-12
-                  rounded-2xl
-                  bg-blue-500
-                  text-white
-                  flex
-                  items-center
-                  justify-center
-                  font-bold
-                  text-lg
-                  shadow-lg
-                ">
-
-                  {cart[p.id] || 0}
+                  </p>
 
                 </div>
 
                 <button
 
                   onClick={()=>
-                    add(p.id)
+                    deleteOrder(order.id)
                   }
 
                   className="
-                    w-10
-                    h-10
+                    w-12
+                    h-12
                     rounded-2xl
-                    bg-blue-500
-                    hover:bg-blue-600
-                    text-white
+                    bg-red-100
+                    text-red-500
+                    hover:bg-red-500
+                    hover:text-white
                     flex
                     items-center
                     justify-center
                     transition-all
-                    shadow-lg
                   "
                 >
 
-                  <Plus size={18} />
+                  <Trash2 />
 
                 </button>
 
               </div>
 
-            </div>
-
-          ))}
-
-        </div>
-
-        {/* RIGHT */}
-
-        <div className="
-          flex
-          flex-col
-          gap-6
-        ">
-
-          {/* CART */}
-
-          <div className="
-            bg-white/70
-            backdrop-blur-2xl
-            rounded-[32px]
-            shadow-2xl
-            border
-            p-6
-          ">
-
-            <div className="
-              flex
-              justify-between
-              items-center
-              mb-6
-            ">
-
-              <div>
-
-                <h2 className="
-                  text-2xl
-                  font-bold
-                  text-gray-800
-                ">
-                  Cart
-                </h2>
-
-                <p className="
-                  text-sm
-                  text-gray-500
-                ">
-                  Current shipment
-                </p>
-
-              </div>
+              {/* CUSTOMER */}
 
               <div className="
-                w-14
-                h-14
+                bg-gray-50
                 rounded-3xl
-                bg-gradient-to-r
-                from-blue-500
-                to-indigo-500
-                text-white
-                flex
-                items-center
-                justify-center
-                shadow-lg
+                p-5
+                mb-5
               ">
 
-                <ShoppingCart />
+                <div className="
+                  flex
+                  items-center
+                  gap-4
+                ">
+
+                  <div className="
+                    w-14
+                    h-14
+                    rounded-2xl
+                    bg-blue-100
+                    text-blue-600
+                    flex
+                    items-center
+                    justify-center
+                  ">
+
+                    <User />
+
+                  </div>
+
+                  <div>
+
+                    <h2 className="
+                      font-bold
+                      text-gray-800
+                    ">
+                      {
+                        order.customerName
+                        || "Unknown"
+                      }
+                    </h2>
+
+                    <p className="
+                      text-sm
+                      text-gray-500
+                    ">
+                      📞 {order.customerPhone || "-"}
+                    </p>
+
+                    <p className="
+                      text-sm
+                      text-gray-500
+                    ">
+                      📍 {order.customerAddress || "-"}
+                    </p>
+
+                    <p className="
+                      text-sm
+                      text-gray-500
+                    ">
+                      📝 {order.customerNote || "-"}
+                    </p>
+
+                  </div>
+
+                </div>
 
               </div>
 
-            </div>
+              {/* ITEMS */}
 
-            <div className="
-              space-y-3
-              mb-6
-            ">
+              <div className="
+                space-y-3
+                mb-5
+              ">
 
-              {Object.entries(cart)
+                {
 
-                .map(([id,q]:any)=>
+                  Array.isArray(order.items)
 
-                  q > 0 && (
+                  &&
+
+                  order.items.map((item:any)=>(
 
                     <div
 
-                      key={id}
+                      key={item.id}
 
                       className="
                         flex
@@ -747,569 +581,309 @@ totalPrice,
                       "
                     >
 
-                      <div className="
-                        flex
-                        items-center
-                        gap-3
-                      ">
+                      <div>
 
-                        <div className="
-                          w-10
-                          h-10
-                          rounded-2xl
-                          bg-blue-100
-                          text-blue-600
-                          flex
-                          items-center
-                          justify-center
+                        <h2 className="
+                          font-semibold
+                          text-gray-800
                         ">
 
-                          <Package size={18} />
+                          {item.name}
 
-                        </div>
+                        </h2>
 
-                        <div>
+                        <p className="
+                          text-sm
+                          text-gray-500
+                        ">
 
-  <span className="
-    font-medium
-  ">
-    {
+                          {item.quantity}
+                          {" x "}
+                          {
+                          (Number(item.price || 0) *
+                          Number(item.quantity || 0)
+                          ).toLocaleString()
+                          }đ
+                        </p>
 
-      products.find(
-        p=>p.id===id
-      )?.name
-
-    }
-  </span>
-
-  <p className="
-    text-sm
-    text-green-600
-    font-semibold
-  ">
-
-    {
-
-      (
-        (
-          products.find(
-            p=>p.id===id
-          )?.price || 0
-        ) * q
-
-      ).toLocaleString()
-
-    }đ
-
-  </p>
-
-</div>
                       </div>
 
                       <div className="
-                        px-3
-                        py-1
-                        rounded-full
-                        bg-blue-500
-                        text-white
-                        text-sm
                         font-bold
+                        text-green-600
+                        text-xl
                       ">
 
-                        x{q}
+                        {Number(
+                          item.total || 0
+                        ).toLocaleString()}đ
 
                       </div>
 
                     </div>
-
-                  )
-                )
-              }
-
-            </div>
-
-            <div className="
-              bg-gradient-to-r
-              from-blue-500
-              to-indigo-500
-              text-white
-              rounded-3xl
-              p-5
-              mb-5
-            ">
-
-              <div className="
-                flex
-                justify-between
-                items-center
-              ">
-
-                <div>
-
-                  <p className="
-                    text-sm
-                    opacity-80
-                  ">
-                    Total Items
-                  </p>
-
-                  <h2 className="
-                    text-3xl
-                    font-bold
-                    mt-1
-                  ">
-                    {totalItems}
-                  </h2>
-                  <div className="
-  mt-4
-  pt-4
-  border-t
-  border-white/20
-">
-
-  <p className="
-    text-sm
-    opacity-80
-  ">
-    Total Price
-  </p>
-
-  <h2 className="
-    text-3xl
-    font-bold
-    mt-1
-  ">
-    {totalPrice.toLocaleString()}đ
-  </h2>
-
-</div>
-                </div>
-
-                <Boxes size={42} />
+                  ))
+                }
 
               </div>
 
-            </div>
-
-            <div className="mb-5">
-
-              <p className="
-                text-sm
-                font-medium
-                text-gray-600
-                mb-3
-              ">
-                🚚 Select Vehicle
-              </p>
+              {/* TOTAL */}
 
               <div className="
-                flex
-                gap-3
-              ">
-
-                {TRUCKS.map((t)=>(
-
-                  <button
-
-                    key={t}
-
-                    onClick={()=>
-                      setSelectedTruck(t)
-                    }
-
-                    className={`
-                      flex-1
-                      py-3
-                      rounded-2xl
-                      font-semibold
-                      transition-all
-
-                      ${
-                        selectedTruck===t
-
-                          ? `
-                            bg-gradient-to-r
-                            from-blue-500
-                            to-indigo-500
-                            text-white
-                            shadow-lg
-                          `
-
-                          : `
-                            bg-gray-100
-                            text-gray-600
-                          `
-                      }
-                    `}
-                  >
-
-                    {t}
-
-                  </button>
-
-                ))}
-
-              </div>
-
-            </div>
-
-            <button
-
-              onClick={placeOrder}
-
-              className="
-                w-full
-                py-4
-                rounded-3xl
                 bg-gradient-to-r
                 from-green-500
                 to-emerald-500
                 text-white
-                font-bold
-                shadow-xl
-                hover:scale-[1.02]
-                transition-all
-                flex
-                items-center
-                justify-center
-                gap-3
-              "
-            >
+                rounded-3xl
+                p-5
+                mb-5
+              ">
 
-              <Rocket size={20} />
-
-              Place Order
-
-            </button>
-
-          </div>
-
-          {/* TRACKING */}
-
-          <div className="
-            bg-white/70
-            backdrop-blur-2xl
-            rounded-[32px]
-            shadow-2xl
-            border
-            p-6
-            flex-1
-          ">
-
-            <div className="
-              flex
-              justify-between
-              items-center
-              mb-6
-            ">
-
-              <div>
-
-                <h2 className="
-                  text-2xl
-                  font-bold
-                  text-gray-800
+                <div className="
+                  flex
+                  justify-between
+                  items-center
                 ">
-                  Tracking
-                </h2>
+
+                  <div>
+
+                    <p className="
+                      text-sm
+                      opacity-80
+                    ">
+
+                      Total Price
+
+                    </p>
+
+                    <h2 className="
+                      text-4xl
+                      font-black
+                      mt-2
+                    ">
+
+                      {Number(
+                        order.totalPrice || 0
+                      ).toLocaleString()}đ
+
+                    </h2>
+
+                  </div>
+
+                  <Package size={42} />
+
+                </div>
+
+              </div>
+
+              {/* ASSIGN VEHICLE */}
+
+              <div className="mb-5">
 
                 <p className="
                   text-sm
-                  text-gray-500
+                  font-bold
+                  text-gray-600
+                  mb-3
                 ">
-                  Live delivery status
+
+                  🚚 Assign Vehicle
+
                 </p>
 
-              </div>
+                <div className="
+                  flex
+                  gap-3
+                ">
 
-              <div className="
-                w-14
-                h-14
-                rounded-3xl
-                bg-gradient-to-r
-                from-purple-500
-                to-violet-500
-                text-white
-                flex
-                items-center
-                justify-center
-              ">
+                  {
 
-                <Truck />
+                    VEHICLES.map((vehicle)=>(
 
-              </div>
+                      <button
 
-            </div>
+                        key={vehicle}
 
-            <div className="
-              space-y-5
-              max-h-[500px]
-              overflow-auto
-            ">
+                        onClick={()=>
 
-              {orders.map((o)=>(
+                          assignVehicle(
 
-                <div
+                            order.id,
 
-                  key={o.id}
+                            vehicle
+                          )
+                        }
 
-                  className="
-                    bg-gray-50
-                    rounded-3xl
-                    p-5
-                  "
-                >
-
-                  <div className="
-                    flex
-                    justify-between
-                    items-center
-                    mb-3
-                  ">
-
-                    <div>
-
-                      <h2 className="
-                        font-bold
-                        text-gray-800
-                      ">
-                        {o.id}
-                      </h2>
-
-                      <p className="
-                        text-sm
-                        text-gray-500
-                      ">
-                        Vehicle:
-                        {" "}
-                        {o.truck}
-                      </p>
-                    <div className="
-  mt-4
-  space-y-2
-">
-
-  {Array.isArray(o.items) &&
-
-  o.items.map((item:any)=>(
-
-
-    <div
-
-      key={item.id}
-
-      className="
-        flex
-        justify-between
-        items-center
-        bg-white
-        rounded-2xl
-        px-4
-        py-3
-      "
-    >
-
-      <div>
-
-        <h3 className="
-          font-semibold
-        ">
-          {item.name}
-        </h3>
-
-        <p className="
-          text-sm
-          text-gray-500
-        ">
-          {item.quantity}
-          {" x "}
-          {Number(item.price || 0).toLocaleString()}đ
-        </p>
-
-      </div>
-
-      <div className="
-        font-bold
-        text-green-600
-      ">
-
-       {Number(item.total || 0).toLocaleString()}đ
-
-      </div>
-
-    </div>
-
-  ))
-  }
-
-  <div className="
-    flex
-    justify-between
-    items-center
-    mt-4
-    pt-4
-    border-t
-  ">
-
-    <span className="
-      font-semibold
-      text-gray-600
-    ">
-      Total
-    </span>
-
-    <span className="
-      text-2xl
-      font-bold
-      text-green-600
-    ">
-
-      {(o.totalPrice || 0)
-        .toLocaleString()}đ
-
-    </span>
-
-  </div>
-
-</div>
-                    </div>
-
-                    <div className="
-                      flex
-                      items-center
-                      gap-3
-                    ">
-
-                      <div
                         className={`
-                          px-3
-                          py-1
-                          rounded-full
-                          text-xs
-                          font-semibold
+                          flex-1
+                          py-3
+                          rounded-2xl
+                          font-bold
+                          transition-all
 
                           ${
-                            o.status==="delivered"
+                            order.vehicle === vehicle
 
                               ? `
-                                bg-green-100
-                                text-green-700
-                              `
-
-                              : o.status==="running"
-
-                              ? `
-                                bg-yellow-100
-                                text-yellow-700
+                                bg-gradient-to-r
+                                from-blue-500
+                                to-indigo-500
+                                text-white
+                                shadow-xl
                               `
 
                               : `
-                                bg-gray-200
-                                text-gray-700
+                                bg-gray-100
+                                text-gray-600
                               `
                           }
                         `}
                       >
 
-                        {o.status}
-
-                      </div>
-
-                      <button
-
-                        onClick={()=>
-                          deleteOrder(o.id)
-                        }
-
-                        className="
-                          w-10
-                          h-10
-                          rounded-2xl
-                          bg-red-100
-                          text-red-500
-                          hover:bg-red-500
-                          hover:text-white
-                          flex
-                          items-center
-                          justify-center
-                          transition-all
-                        "
-                      >
-
-                        <Trash2 size={18} />
+                        {vehicle}
 
                       </button>
-
-                    </div>
-
-                  </div>
-
-                  <div className="
-                    flex
-                    justify-between
-                    text-sm
-                    mb-2
-                  ">
-
-                    <span className="
-                      text-gray-500
-                    ">
-                      Delivery Progress
-                    </span>
-
-                    <span className="
-                      font-bold
-                      text-blue-600
-                    ">
-                      {o.progress || 0}%
-                    </span>
-
-                  </div>
-
-                  <div className="
-                    w-full
-                    h-4
-                    bg-gray-200
-                    rounded-full
-                    overflow-hidden
-                  ">
-
-                    <div
-
-                      className="
-                        h-4
-                        rounded-full
-                        bg-gradient-to-r
-                        from-blue-500
-                        to-indigo-500
-                        transition-all
-                        duration-700
-                      "
-
-                      style={{
-                        width:
-                          `${o.progress || 0}%`
-                      }}
-                    />
-
-                  </div>
+                    ))
+                  }
 
                 </div>
 
-              ))}
+              </div>
+
+              {/* STATUS */}
+
+              <div className="
+                flex
+                justify-between
+                items-center
+                mb-4
+              ">
+
+                <div className="
+                  flex
+                  items-center
+                  gap-3
+                ">
+
+                  <MapPinned />
+
+                  <span className="
+                    font-semibold
+                    text-gray-700
+                  ">
+
+                    Vehicle:
+                    {" "}
+                    {
+                      order.vehicle
+                      || "Not Assigned"
+                    }
+
+                  </span>
+
+                </div>
+
+                <div className={`
+                  px-4
+                  py-2
+                  rounded-full
+                  text-sm
+                  font-bold
+
+                  ${
+                    order.status === "delivered"
+
+                      ? `
+                        bg-green-100
+                        text-green-700
+                      `
+
+                      : order.status === "running"
+
+                      ? `
+                        bg-yellow-100
+                        text-yellow-700
+                      `
+
+                      : `
+                        bg-gray-200
+                        text-gray-700
+                      `
+                  }
+                `}>
+
+                  {order.status}
+
+                </div>
+
+              </div>
+
+              {/* PROGRESS */}
+
+              <div>
+
+                <div className="
+                  flex
+                  justify-between
+                  text-sm
+                  mb-2
+                ">
+
+                  <span className="
+                    text-gray-500
+                  ">
+
+                    Delivery Progress
+
+                  </span>
+
+                  <span className="
+                    font-bold
+                    text-blue-600
+                  ">
+
+                    {
+                      order.progress || 0
+                    }%
+
+                  </span>
+
+                </div>
+
+                <div className="
+                  w-full
+                  h-4
+                  bg-gray-200
+                  rounded-full
+                  overflow-hidden
+                ">
+
+                  <div
+
+                    className="
+                      h-4
+                      rounded-full
+                      bg-gradient-to-r
+                      from-blue-500
+                      to-indigo-500
+                      transition-all
+                      duration-700
+                    "
+
+                    style={{
+                      width:
+                        `${Number(order.progress || 0).toFixed(2).replace(/\.00$/, "")}%`
+                    }}
+                  />
+
+                </div>
+
+              </div>
 
             </div>
-
-          </div>
-
-        </div>
+          ))
+        }
 
       </div>
-
-      <audio
-        ref={dingRef}
-        src="/ding.mp3"
-      />
 
     </div>
   );
@@ -1322,19 +896,28 @@ totalPrice,
 function TopCard({
 
   title,
+
   value,
+
   icon,
+
   color
 
 }:any){
 
   const colors:any = {
 
-    green:
-      "from-green-500 to-emerald-500",
-
     blue:
-      "from-blue-500 to-indigo-500"
+      "from-blue-500 to-indigo-500",
+
+    orange:
+      "from-orange-500 to-red-500",
+
+    purple:
+      "from-purple-500 to-violet-500",
+
+    green:
+      "from-green-500 to-emerald-500"
   };
 
   return (
@@ -1342,12 +925,10 @@ function TopCard({
     <div className="
       bg-white/70
       backdrop-blur-2xl
-      rounded-[28px]
+      rounded-[32px]
       shadow-2xl
       border
-      px-6
-      py-5
-      min-w-[220px]
+      p-6
     ">
 
       <div className="
@@ -1359,34 +940,38 @@ function TopCard({
         <div>
 
           <p className="
-            text-sm
             text-gray-500
+            text-sm
           ">
+
             {title}
+
           </p>
 
           <h2 className="
-            text-3xl
-            font-bold
+            text-4xl
+            font-black
             text-gray-800
             mt-2
           ">
+
             {value}
+
           </h2>
 
         </div>
 
         <div className={`
-          w-14
-          h-14
-          rounded-2xl
+          w-16
+          h-16
+          rounded-3xl
           bg-gradient-to-r
           ${colors[color]}
           text-white
           flex
           items-center
           justify-center
-          shadow-lg
+          shadow-xl
         `}>
 
           {icon}
@@ -1398,3 +983,4 @@ function TopCard({
     </div>
   );
 }
+

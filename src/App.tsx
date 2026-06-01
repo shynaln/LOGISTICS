@@ -4,7 +4,7 @@ import Tracking from "./pages/Tracking";
 import Routes from "./pages/Routes";
 import Drivers from "./pages/Drivers";
 import Orders from "./pages/Orders";
-
+import Products from "./pages/Products";
 import "./vehicleEngine";
 
 import {
@@ -103,7 +103,39 @@ export default function App() {
             active={page==="orders"}
             onClick={()=>setPage("orders")}
           />
+          <MenuItem
+            label="Products"
+            active={page==="products"}
+            onClick={()=>setPage("products")}
+          />
+          <div
 
+  onClick={()=>
+
+    window.open(
+      "/customer/shop",
+      "_blank"
+    )
+  }
+
+  className="
+    p-3
+    rounded-2xl
+    cursor-pointer
+    transition-all
+    duration-300
+    font-medium
+    hover:bg-white
+    hover:shadow-md
+    flex
+    items-center
+    gap-2
+  "
+>
+
+  🛒 Customer Shop
+
+</div>
         </nav>
 
         <div className="mt-auto">
@@ -153,6 +185,7 @@ export default function App() {
         {page === "routes" && <Routes />}
         {page === "drivers" && <Drivers />}
         {page === "orders" && <Orders />}
+        {page === "products" && <Products />}
 
       </div>
 
